@@ -6,7 +6,7 @@ import glob
 import serial
 from asip_client import AsipClient
 from threading import Thread
-from queue import Queue
+from Queue import Queue
 from asip_writer import AsipWriter
 from serial import Serial
 
@@ -35,15 +35,17 @@ class SimpleSerialBoard:
     def __init__(self):
         # TODO: very simple implementation, need to improve
         #self.ser_conn = Serial()
-        #self.serial_port_finder()
-
+        #self.serial_port_finder()    
         try:
             # old implementation was:
             #self.ser_conn = Serial(port='/dev/cu.usbmodemfd121', baudrate=57600)
             # self.ser_conn = Serial(port=self._port, baudrate=57600)
             self.ser_conn = Serial()
-            self.serial_port_finder()
-            self.open_serial(self._ports[0], 57600)
+            portIndexToOpen = 0             
+            self.serial_port_finder(portIndexToOpen)          
+            print("attempting to open " +self._ports[portIndexToOpen])           
+            self.open_serial(self._ports[0], 57600)      
+            print("port opened");             
             self.asip = AsipClient(self.SimpleWriter(self))
         except Exception as e:
             sys.stdout.write("Exception: caught {} while init serial and asip protocols\n".format(e))
@@ -124,7 +126,7 @@ class SimpleSerialBoard:
         A list of available serial ports
     """
     # TODO: test needed for linux and windows implementation
-    def serial_port_finder(self):
+    def serial_port_finder(self, desiredIndex):
         #system = platform.system()
         # if self.DEBUG:
         #     sys.stdout.write("DEBUG: detected os is {}\n".format(system))
@@ -146,7 +148,7 @@ class SimpleSerialBoard:
 
         system = sys.platform
         if system.startswith('win'):
-            temp_ports = ['COM' + str(i + 1) for i in range(256)]
+            temp_ports = ['COM' + str(i + 1) for i in range(255)]          
         elif system.startswith('linux'):
             # this is to exclude your current terminal "/dev/tty"
             temp_ports = glob.glob('/dev/tty[A-Za-z]*')
@@ -161,6 +163,8 @@ class SimpleSerialBoard:
                 s = self.ser_conn.open()
                 self.ser_conn.close()
                 self._ports.append(port)
+                if(len(self._ports) > desiredIndex):
+                    return  # we have found the desired port
             except serial.SerialException:
                 pass
         if self.DEBUG:

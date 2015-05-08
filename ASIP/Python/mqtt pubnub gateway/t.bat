@@ -1,0 +1,1 @@
+python MQTTGateway.py hastingsfiltered 1.0 500
