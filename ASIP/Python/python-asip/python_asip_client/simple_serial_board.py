@@ -27,7 +27,7 @@ class SimpleSerialBoard:
     #  FIXME: fix Queue dimension?
     _port = "" #serial port
     _ports = [] #serial ports array
-
+  
     # ************   END PRIVATE FIELDS DEFINITION ****************
 
     # self constructor takes the name of the serial port and it creates a Serial object
@@ -50,16 +50,14 @@ class SimpleSerialBoard:
         except Exception as e:
             sys.stdout.write("Exception: caught {} while init serial and asip protocols\n".format(e))
 
-        try:
-            # NOTICE: two request_port_mapping() are required. If this method is not called two times,
-            # the client won't be able to set the pin mapping
-            time.sleep(0.5)
-            self.request_port_mapping()
-            time.sleep(1)
-            self.request_port_mapping()
-            time.sleep(1)
+        try:          
             self.ListenerThread(self.queue, self.ser_conn, True, self.DEBUG).start()
             self.ConsumerThread(self.queue, self.asip, True, self.DEBUG).start()
+            while self.asip.isVersionOk() == False:  # flag will be set to true when valid version message is received
+                self.request_info()  
+                time.sleep(1.0)            
+            self.request_port_mapping()          
+            #time.sleep(1)
         except Exception as e:
             #TODO: improve exception handling
             sys.stdout.write("Exception: caught {} while launching threads\n".format(e))
@@ -84,6 +82,9 @@ class SimpleSerialBoard:
     def analog_write(self, pin, value):
         self.asip.analog_write(pin, value)
 
+    def request_info(self):
+        self.asip.request_info()
+    
     def request_port_mapping(self):
         self.asip.request_port_mapping()
 
@@ -186,6 +187,7 @@ class SimpleSerialBoard:
         # val is a string
         # TODO: improve try catch
         def write(self, val):
+            #print(val), 
             if self.parent.ser_conn.isOpen():
                 try:
                     self.parent.ser_conn.write(val.encode())

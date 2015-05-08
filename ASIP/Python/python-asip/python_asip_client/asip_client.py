@@ -27,6 +27,10 @@ class AsipClient:
     GET_PIN_SERVICES_LIST = 's'  # gets a list of pins indicating registered service
     # tag_GET_SERVICES_NAMES    = 'n' # gets a list of service tags/name pairs
     GET_PIN_CAPABILITIES = 'c'  # gets a bitfield array indicating pin capabilities
+    
+    #tag for system messages:
+    SYSTEM_GET_INFO = '?' # Get version and hardware info
+    RESTART_REQUEST = 'R' # disables all autoevents and attempts to restart all services 
 
     # Pin modes (these are public)
     INPUT = 1  # defined in Arduino.h
@@ -36,6 +40,7 @@ class AsipClient:
     PWM = 5  # digital pin in PWM output mode
 
     EVENT_HANDLER = '@'  # Standard incoming message
+    SYSTEM_MSG_HEADER    = '#'  # incoming is a system message 
     ERROR_MESSAGE_HEADER = '~'  # Incoming message: error report
     DEBUG_MESSAGE_HEADER = '!'  # A debug message from the board (can be ignored, probably)
 
@@ -60,6 +65,8 @@ class AsipClient:
     # out = AsipWriter()
     __out = None
 
+    __AsipVersionOk = False # flag to indicate that a valid version message has been received
+     
     # ************   END PRIVATE FIELDS DEFINITION ****************
 
     #  A constructor taking the writer as parameter.
@@ -95,12 +102,17 @@ class AsipClient:
         elif input_str[0] == self.ERROR_MESSAGE_HEADER:
             self.__handle_input_error(input_str)
         elif input_str[0] == self.DEBUG_MESSAGE_HEADER:
-            self.__handle_input_event(input_str)
+            self.__handle_debug_event(input_str)
         else:
             # FIXME: better error handling required! (raise exception) ?
             if self.DEBUG:
                 sys.stdout.write("DEBUG: Strange character received at position 0: {}\n".format(input_str))
 
+    # method to request ASIP system info
+    def request_info(self):
+        self.__out.write("{},{}\n".format(self.SYSTEM_MSG_HEADER,self.SYSTEM_GET_INFO))     
+        if self.DEBUG:
+            sys.stdout.write("DEBUG: Requesting info {},{}\n".format(self.SYSTEM_MSG_HEADER,self.SYSTEM_GET_INFO))               
     # A method to request the mapping between ports and pins.
     # See process_port_data and process_pin_mapping for additional details on the actual mapping.
     def request_port_mapping(self):
@@ -174,13 +186,17 @@ class AsipClient:
 
     def set_asip_writer(self, w):
         self.__out = w
+        
+    def isVersionOk(self):
+        return self.__AsipVersionOk
 
     # ************ END PUBLIC METHODS *************
 
     # ************ BEGIN PRIVATE METHODS *************
 
     # A method to do what is says on the tin...
-    def __handle_input_event(self, input_str):
+    def __handle_input_event(self, input_str):   
+        #print("mm: received message {}\n".format(input_str))    
         if self.DEBUG:
             sys.stdout.write("DEBUG: received message {}\n".format(input_str))
 
@@ -201,6 +217,13 @@ class AsipClient:
                 if self.DEBUG:
                     sys.stdout.write("DEBUG: Service not recognised in position 3 for I/O service: {}\n".format(input_str))
             # end of IO_SERVICE
+            
+        elif input_str[1] == self.SYSTEM_MSG_HEADER:      
+            if input_str[3] == self.SYSTEM_GET_INFO:
+                field = input_str[5:].split(',')   #extract info fields
+                info = 'ASIP version %s.%s running on %s using sketch: %s\n' % (field[0], field[1],field[2], field[4])
+                self.__AsipVersionOk = True   #TODO - check that the major version (field[0]) is supported by this client 
+                print(info)            
 
         elif input_str[1] in self.__services.keys():
             # Is this one of the services we know? If this is the case, we call it and we process the input
@@ -208,8 +231,7 @@ class AsipClient:
             for s in self.__services[input_str[1]]:
                 s.process_response(input_str)
                 if self.DEBUG:
-                    sys.stdout.write("DEBUG: calling process response for key {} and input {}\n".format(s,input))
-
+                    sys.stdout.write("DEBUG: calling process response for key {} and input {}\n".format(s,input))     
         else:
             # We don't know what to do with it.
             if self.DEBUG:
@@ -218,14 +240,12 @@ class AsipClient:
     # To handle a message starting with an error header (this is a form of error reporting from Arduino)
     def __handle_input_error(self, input_str):
         # FIXME: improve error handling
-        if self.DEBUG:
-            sys.stdout.write("DEBUG: Error message received: {}\n".format(input_str))
+         print("Error message received: {}\n".format(input_str))
 
     # For the moment we just report board's debug messages on screen
     # FIXME: do something smarter?
     def __handle_debug_event(self, input_str):
-        if self.DEBUG:
-            sys.stdout.write("DEBUG: {}\n".format(input_str))
+        print("dbg msg: {}\n".format(input_str))
 
     # ************ END PRIVATE METHODS *************/
 
