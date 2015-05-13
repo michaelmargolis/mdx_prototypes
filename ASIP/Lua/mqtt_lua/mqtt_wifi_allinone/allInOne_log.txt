@@ -1,0 +1,149 @@
+NodeMCU 0.9.5 build 20150123  powered by Lua 5.1.4
+lua: cannot open init.lua
+> dofile("allInOne.lua")
+> Waiting for Wifi connection
+Waiting for Wifi connection
+Waiting for Wifi connection
+Waiting for Wifi connection
+WIFI Connected!
+ESP8266 mode is: 1
+The module MAC address is: 1A-FE-34-9F-4F-F5
+Config done, IP is 192.168.0.100
+WiFI connected. Trying to launch MQTT.
+IP Address: 192.168.0.100
+MQTT: Connected at first attempt.
+MQTT: subscribe success
+Message sent
+/topic:
+Alive since 5 seconds
+Message sent
+/topic:
+Alive since 10 seconds
+Message sent
+/topic:
+Alive since 15 seconds
+Message sent
+/topic:
+Alive since 20 seconds
+Message sent
+/topic:
+Alive since 25 seconds
+Message sent
+/topic:
+Alive since 30 seconds
+Message sent
+/topic:
+Alive since 35 seconds
+Message sent
+/topic:
+Alive since 40 seconds
+Message sent
+/topic:
+Alive since 45 seconds
+Message sent
+/topic:
+Alive since 50 seconds
+Message sent
+/topic:
+Alive since 55 seconds
+Message sent
+/topic:
+Alive since 60 seconds
+Message sent
+/topic:
+Alive since 65 seconds
+Message sent
+/topic:
+Alive since 70 seconds
+Message sent
+/topic:
+Alive since 75 seconds
+Message sent
+/topic:
+Alive since 80 seconds
+Message sent
+/topic:
+Alive since 85 seconds
+Message sent
+/topic:
+Alive since 90 seconds
+Message sent
+/topic:
+Alive since 95 seconds
+Message sent
+/topic:
+Alive since 100 seconds
+Message sent
+/topic:
+Alive since 105 seconds
+MQTT: Offline: trying to connect again.
+11048
+Message sent
+MQTT: successfully reconnected, attempt n. 2
+MQTT: Offline: trying to connect again.
+11016
+MQTT: successfully reconnected, attempt n. 3
+MQTT: subscribe success
+Message sent
+/topic:
+Alive since 130 seconds
+Message sent
+/topic:
+Alive since 135 seconds
+Message sent
+/topic:
+Alive since 140 seconds
+Message sent
+/topic:
+Alive since 145 seconds
+Message sent
+/topic:
+Alive since 150 seconds
+Message sent
+/topic:
+Alive since 155 seconds
+Message sent
+/topic:
+Alive since 160 seconds
+Message sent
+/topic:
+Alive since 165 seconds
+Message sent
+/topic:
+Alive since 170 seconds
+Message sent
+/topic:
+Alive since 175 seconds
+Message sent
+/topic:
+Alive since 180 seconds
+Message sent
+/topic:
+Alive since 185 seconds
+Message sent
+/topic:
+Alive since 190 seconds
+Message sent
+/topic:
+Alive since 195 seconds
+Message sent
+/topic:
+Alive since 200 seconds
+Message sent
+/topic:
+Alive since 205 seconds
+Message sent
+/topic:
+Alive since 210 seconds
+Message sent
+/topic:
+Alive since 215 seconds
+MQTT: Offline: trying to connect again.
+10976
+Message sent
+MQTT: successfully reconnected, attempt n. 4
+PANIC: unprotected error in call to Lua API (allInOne.lua:46: sending in process)
+.ü!...¤<..æÇ!þ1ä)]1¤ñBCá
+NodeMCU 0.9.5 build 20150123  powered by Lua 5.1.4
+lua: cannot open init.lua
+> 
