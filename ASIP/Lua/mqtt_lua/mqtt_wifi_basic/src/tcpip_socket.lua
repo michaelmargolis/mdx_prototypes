@@ -2,13 +2,17 @@ SOCKET_PORT = 1234
 
 buffer = ""
 
+function trim(s)
+  return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
 function run()
   sv = net.createServer(net.TCP)
   sv:listen(SOCKET_PORT,function(c)
     c:on("receive", function(c, pl)
-      print(pl)
+      print(trim(pl))
       -- uart.write(0,pl)
-      if pl == "close" then -- not working, why?
+      if trim(pl) == "close" then 
         c:close()
       end
     end)
