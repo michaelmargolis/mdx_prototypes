@@ -27,17 +27,18 @@ function sendPage(conn)
   end
   
   if(newssid ~= "") then
-    conn:send('<br/>Upon reboot, unit will attempt to connect to SSID "' .. newssid ..'".\n')
+    conn:send('<br/>After reboot, unit will attempt to connect to SSID "' .. newssid ..'".\n')
   end
     
-  conn:send('<br/><br/>\n\n<table>\n<tr><th>Choose SSID to connect to:</th></tr>\n')
+  conn:send('<br/><br/>\n\n<table>\n<tr><th>Select Access Point:</th></tr>\n')
 
   for ap,v in pairs(currentAPs) do
-    conn:send('<tr><td><input type="button" onClick=\'document.getElementById("ssid").value = "' .. ap .. '"\' value="' .. ap .. '"/></td></tr>\n')
+    conn:send('<tr><td><input type="button" style="min-width: 120px;" onClick=\'document.getElementById("ssid").value = "' .. ap .. '"\' value="' .. ap .. '"/></td></tr>\n')
   end
   
   conn:send('</table>\n\nSSID: <input type="text" id="ssid" name="ssid" value=""><br/>\nPassword: <input type="text" name="passwd" value=""><br/>\n\n')
-  conn:send('<input type="submit" value="Submit"/>\n<input type="button" onClick="window.location.reload()" value="Refresh"/>\n<br/>If you\'re happy with this...\n<input type="submit" name="reboot" value="Reboot!"/>\n')
+  conn:send('<br/>Press Submit to update and reboot<br/><br/>')
+  conn:send('<input type="submit" value="Submit"/>\n<input type="button" onClick="window.location.reload()" value="Refresh"/>\n<br/>')
   conn:send('</form>\n</body></html>')
   
 end
@@ -63,23 +64,23 @@ function incoming_connection(conn, payload)
       return
     end
     payload = string.sub(payload, plStart+1)
+    print(payload)
     args={}
     args.passwd=""
     -- parse all POST args into the 'args' table
     for k,v in string.gmatch(payload, "([^=&]*)=([^&]*)") do
       args[k]=url_decode(v)
+      print(args[k])
     end
     if(args.ssid ~= nil and args.ssid ~= "") then
       print("New SSID: " .. args.ssid)
       print("Password: " .. args.passwd)
       newssid = args.ssid
       wifi.sta.config(args.ssid, args.passwd)
-    end
-    if(args.reboot ~= nil) then
-      print("Rebooting")
+      print("Rebooting to connect to ".. args.ssid)
       conn:close()
       node.restart()
-    end
+    end   
     conn:send('HTTP/1.1 303 See Other\n')
     conn:send('Location: /\n')
   end

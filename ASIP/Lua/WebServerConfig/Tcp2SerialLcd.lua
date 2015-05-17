@@ -1,6 +1,5 @@
 -- tcp server for ASIP with LCD
 
-uart.setup(0,57600,8,0,1,0)
 timeout = 30 -- 30 secs 
 sv=net.createServer(net.TCP,timeout)
 ip = "IP "..wifi.sta.getip()

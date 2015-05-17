@@ -1,5 +1,5 @@
-CMDFILE = "Tcp2SerialLcd.lua"   -- File to be executed after connection
-timeout = 20 -- seconds to wait for connect before going to AP mode
+--CMDFILE = "Tcp2SerialLcd.lua"   -- File to be executed after connection
+timeout = 4 -- seconds to wait for connect before going to AP mode
                
 statuses = {[0]="Idle",
             [1]="Connecting",
@@ -10,6 +10,11 @@ statuses = {[0]="Idle",
             [255]="Not in STATION mode"}
             
 checkCount = 0
+
+function printText(text, line)  -- default if LCD not connected
+  print("!"..text)      
+end
+ 
 function checkStatus()
   checkCount = checkCount + 1
   local s=wifi.sta.status()
@@ -57,51 +62,17 @@ function cleanup()
   cleanup = nil
   -- take out the trash
   collectgarbage()
-  -- pause a few seconds to allow garbage to collect and free up heap
-  tmr.delay(5000)
+  -- pause a few ms to allow garbage to collect and free up heap
+  tmr.delay(2000)
 end
 
--- LCD code
-t = { " ", " "," "," "," "," " } -- 6 blank lines of text
--- setup I2c and connect display
-function init_i2c_display()
-     -- SDA and SCL can be assigned freely to available GPIOs
-     --sda = 5 -- GPIO14
-     --scl = 6 -- GPIO12
-     sda = 3 -- GPIO0
-     scl = 4 -- GPIO2
-     sla = 0x3c
-     i2c.setup(0, sda, scl, i2c.SLOW)
-     disp = u8g.ssd1306_128x64_i2c(sla)
-end
-
--- lcd configure
-function lcdPrepare()
-     disp:setFont(u8g.font_6x10)
-     disp:setFontRefHeightExtendedText()
-     disp:setDefaultForegroundColor()
-     disp:setFontPosTop()
-end
-
-function refreshScreen()
-     disp:firstPage()
-     repeat
-         for k,v in pairs(t) do
-             disp:drawStr(0,(k-1)*11, v)       
-         end
-     until disp:nextPage() == false
-end     
-
-function printText(text, line)  -- line 1 is first line
-     t[line] = text
-     refreshScreen()      
-end
-
-init_i2c_display()
-lcdPrepare()
-
--- make sure we are trying to connect as clients
-wifi.setmode(wifi.STATION)
-wifi.sta.autoconnect(1)
--- every second, check our status
-tmr.alarm(0, 1000, 1, checkStatus)
+if(CMDFILE == nil or CMDFILE == "") then
+    print("set CMDFILE to the executable Lua file")
+else    
+    uart.setup(0,57600,8,0,1,0)
+    -- make sure we are trying to connect as clients
+    wifi.setmode(wifi.STATION)
+    wifi.sta.autoconnect(1)
+    -- every second, check our status
+    tmr.alarm(0, 1000, 1, checkStatus)
+end    
