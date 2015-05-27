@@ -45,15 +45,16 @@ class TCPBridge:
             self.serial_port_finder(portIndexToOpen)
             sys.stdout.write("Attempting to open serial port {}\n".format(self._ports[portIndexToOpen]))
             self.open_serial(self._ports[0], 57600)
-            sys.stdout.write("Serial port opened\n")
+            sys.stdout.write("Serial port {} opened\n".format(self._ports[0]))
         except Exception as e:
             sys.stdout.write("Exception: caught {} while init serial and asip protocols\n".format(e))
 
         try:
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.ip_retrieve()
             self.s.bind((self.TCP_IP, self.TCP_PORT))
             self.s.listen(1) #states the max number of clients that can connect simultaneously
-            sys.stdout.write("Server created\n")
+            sys.stdout.write("Server created with IP: {} and PORT: {}\n".format(self.TCP_IP,self.TCP_PORT))
         except Exception as e:
             #TODO: improve exception handling
             sys.stdout.write("Exception: caught {} while creating socket\n".format(e))
@@ -73,6 +74,10 @@ class TCPBridge:
             except Exception as e:
                 #TODO: improve exception handling
                 sys.stdout.write("Exception: caught {} while launching threads\n".format(e))
+
+    def ip_retrieve(self):
+        #print([(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
+        self.TCP_IP = [(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
 
 
     # ************ END PUBLIC METHODS *************
