@@ -6,6 +6,7 @@ import glob
 import serial
 import socket
 from threading import Thread
+import threading
 from serial import Serial
 #try:
 from Queue import Queue
@@ -66,24 +67,42 @@ class TCPBridge:
             try:
                 conn, addr = self.s.accept()
                 sys.stdout.write("Connection accepted, connection address: {}\n".format(addr))
-                self.ListenerThread(self.queue, self.ser_conn, True, self.DEBUG).start()
-                self.ConsumerThread(self.queue, conn, True, self.DEBUG).start()
-                self.WriterThread(self, conn).start()
+                worker = []
+                worker.append(self.ListenerThread(self.queue, self.ser_conn))
+                worker.append(self.ConsumerThread(self.queue, conn))
+                worker.append(self.WriterThread(self, conn))
+                for i in worker:
+                    print("Starting {}".format(i))
+                    i.start()
                 #time.sleep(1)
                 sys.stdout.write("Threads created\n")
+                time.sleep(5)
+                while len(threading.enumerate()) == 4: # main thread + listener + consumer + writer
+                    # print("we are 3")
+                    pass
+                print("less than 3 now")
+                for i in worker:
+                    #try:
+                    i.event.set()
+                    print("JUST killed {}".format(i))
+                    #except: pass
+                for i in worker:
+                    i.join()
+                    print("JUST joined thread {}".format(i))
+                print("All terminated")
+
             except Exception as e:
                 #TODO: improve exception handling
                 sys.stdout.write("Exception: caught {} while launching threads\n".format(e))
-
-    def ip_retrieve(self):
-        #print([(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
-        self.TCP_IP = [(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
-
 
     # ************ END PUBLIC METHODS *************
 
 
     # ************ BEGIN PRIVATE METHODS *************
+
+    def ip_retrieve(self):
+        #print([(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
+        self.TCP_IP = [(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
 
     def open_serial(self, port, baudrate):
         if self.ser_conn.isOpen():
@@ -155,7 +174,6 @@ class TCPBridge:
     # As described above, SimpleSerialBoard writes messages to the serial port.
     # inner class SimpleWriter implements abstract class AsipWriter:
     class WriterThread(Thread):
-        parent = None
         BUFFER_SIZE = 1024
         DEBUG = False
 
@@ -163,14 +181,19 @@ class TCPBridge:
             Thread.__init__(self)
             self.parent = parent
             self.conn = conn
+            self.event = threading.Event()
 
         # val is a string
         # TODO: improve try catch
         def run(self):
             print("Run writer thread")
             write_buffer = ""
-            while True:
+            #while self.running:
+            while not self.event.is_set():
+                #try:
                 data = self.conn.recv(self.BUFFER_SIZE)
+                #except:
+                #    print("****** Killing from Writer ******")
                 # data = data.encode('utf-8')
                 if self.DEBUG:
                     sys.stdout.write("DEBUG: Received data from TCP/IP: {}\n".format(data))
@@ -207,42 +230,36 @@ class TCPBridge:
                     else:
                         write_buffer += data
 
+            print("STOPPING writer")
+
 
     # ListenerThread and ConsumerThread are implemented following the Producer/Consumer pattern
     # A class for a listener that rad the serial stream and put incoming messages on a queue
     # TODO: implement try catch
     class ListenerThread(Thread):
 
-        queue = None
-        ser_conn = None
-        running = False
         DEBUG = True
 
         # overriding constructor
-        def __init__(self, queue, ser_conn, running, debug):
+        def __init__(self, queue, ser_conn):
             Thread.__init__(self)
             self.queue = queue
             self.ser_conn = ser_conn
-            self.running = running
-            #self.DEBUG = debug
+            self.event = threading.Event()
             if self.DEBUG:
                 sys.stdout.write("DEBUG: serial thread process created \n")
 
-        # if needed, kill will stops the loop inside run method
-        def kill(self):
-            self.running = False
-
         # overriding run method, thread activity
         def run(self):
-            print("Run!")
-            temp_buff = ""
+            #print("Run!")
+            # temp_buff = ""
             #time.sleep(2)
             # TODO: implement ser.inWaiting() >= minMsgLen to check number of char in the receive buffer?
-            serBuffer = ""
+            # serBuffer = ""
 
-            while self.running:
+            #while self.running:
+            while not self.event.is_set():
                 #print ("inside first while")
-
                 # #if self.DEBUG:
                 # #    sys.stdout.write("DEBUG: Temp buff is now {}\n".format(temp_buff))
                 # time.sleep(0.1)
@@ -276,64 +293,81 @@ class TCPBridge:
                 #         temp_buff += val
                 #         if self.DEBUG:
                 #             sys.stdout.write("DEBUG: else case, buff is equal to val, so they are {}\n".format(temp_buff))
-                try:
-                    while True:
-                        #print("before serial conn")
-                        c = self.ser_conn.read() # attempt to read a character from Serial
-                        c = c.decode('utf-8', errors= 'ignore')
-                        #was anything read?
-                        #print("start reading")
-                        if len(c) == 0:
-                            break
 
-                        # check if character is a delimiter
-                        if c == '\r':
-                            c = '' # ignore CR
-                        elif c == '\n':
-                            serBuffer += "\n" # add the newline to the buffer
-                            if self.DEBUG:
-                                sys.stdout.write("Serial buffer is now {}\n".format(serBuffer))
-                            self.queue.put(serBuffer)
-                            serBuffer = '' # empty the buffer
-                        else:
-                            #print("Try to print: {}".format(c))
-                            serBuffer += c # add to the buffer
-                except (OSError, serial.SerialException):
-                    self.running = False
-                    if self.DEBUG:
-                        sys.stdout.write("Serial Exception in listener\n")
+                # try:
+                #     while True:
+                #         #print("before serial conn")
+                #         c = self.ser_conn.read() # attempt to read a character from Serial
+                #         c = c.decode('utf-8', errors= 'ignore')
+                #         #was anything read?
+                #         #print("start reading")
+                #         if len(c) == 0:
+                #             break
+                #
+                #         # check if character is a delimiter
+                #         if c == '\r':
+                #             c = '' # ignore CR
+                #         elif c == '\n':
+                #             serBuffer += "\n" # add the newline to the buffer
+                #             if self.DEBUG:
+                #                 sys.stdout.write("Serial buffer is now {}\n".format(serBuffer))
+                #             self.queue.put(serBuffer)
+                #             serBuffer = '' # empty the buffer
+                #         else:
+                #             #print("Try to print: {}".format(c))
+                #             serBuffer += c # add to the buffer
+                # except (OSError, serial.SerialException):
+                #     self.running = False
+                #     if self.DEBUG:
+                #         sys.stdout.write("Serial Exception in listener\n")
+                temp = ""
+                while True:
+                    c = self.ser_conn.read() # attempt to read a character from Serial
+                    c = c.decode('utf-8', errors= 'ignore')
+                    if c=='\n' or c=='\n':
+                        if len(temp)>0:
+                            temp += '\n'
+                            self.queue.put(temp)
+                            #print("temp is now {}".format(temp))
+                        break
+                    else:
+                        temp += c
+
+            print("Stopping Listener")
 
     # A class that reads the queue and launch the processInput method of the AispClient.
     class ConsumerThread(Thread):
 
         queue = None
         asip = None
-        running = False
         DEBUG = False
 
         # overriding constructor
-        def __init__(self, queue, conn, running, debug):
+        def __init__(self, queue, conn):
             Thread.__init__(self)
             self.queue = queue
             self.conn = conn
-            self.running = running
-            self.DEBUG = debug
+            self.event = threading.Event()
             if self.DEBUG:
                 sys.stdout.write("DEBUG: consumer thread created \n")
 
-        # if needed, kill will stops the loop inside run method
-        def kill(self):
-            self.running = False
-
         # overriding run method, thread activity
         def run(self):
-            while self.running:
+            #while self.running:
+            while not self.event.is_set():
                 temp = self.queue.get()
-                self.conn.send(temp)
+                try:
+                    self.conn.send(temp)
+                    #print("Just sent via tcp/ip {}".format(temp))
+                except:
+                    pass
+                    #print("****** Killing from Consumer ******")
+                    #self.kill()
                 self.queue.task_done()
                 # if temp == "\n":
                     # print("WARNING")
                 # print ("Consumed", temp)
+            print("Stopping consumer")
 
     # ************ END PRIVATE CLASSES *************
 
