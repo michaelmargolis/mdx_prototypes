@@ -4,7 +4,6 @@ import time
 import sys
 import glob
 import serial
-import socket
 from threading import Thread
 import threading
 import paho.mqtt.client as mqtt
@@ -52,23 +51,32 @@ class MQTTBridge:
 
         try:
             self._BrokerIP = broker_ip
-            self._BoardID = "Board"+board_id
-            self._SUBTOPIC = "asip/"+board_id+"/out"
-            self._PUBTOPIC = "asip/"+board_id+"/in"
+            self._BoardID = "Board_"+board_id
+            self._PUBTOPIC = "asip/"+board_id+"/out"
+            self._SUBTOPIC = "asip/"+board_id+"/in"
             self.mqtt_client = mqtt.Client(self._BoardID)
             self.mqtt_client.on_connect = self.on_connect
             self.connect()
-            sys.stdout.write("This is board {}\nConnected to broker with IP {}\nSubscribed to topic {}\nWill publish in topic {}\n"
-                             .format(self._BoardID, self._BrokerIP, self._SUBTOPIC, self._SUBTOPIC))
+            sys.stdout.write("****\nThis is board {}\nConnected to broker with IP {}\nSubscribed to topic {}\nWill publish in topic {}\n****\n"
+                             .format(self._BoardID, self._BrokerIP, self._SUBTOPIC, self._PUBTOPIC))
         except Exception as e:
             #TODO: improve exception handling
             sys.stdout.write("Exception: caught {} while creating socket\n".format(e))
 
     # ************ BEGIN PUBLIC METHODS *************
 
+    def sub_test(self):
+        print("Test")
+        self.mqtt_client.on_message = self.on_message
+        self.mqtt_client.subscribe(topic="asip/#")
+        self.mqtt_client.loop_start()
+
+    def test(self, seconds):
+        self.mqtt_client.loop_start()
+        time.sleep(seconds)
+
     def run(self):
         try:
-            sys.stdout.write("Connection accepted, connection address: {}\n".format(addr))
             worker = []
             worker.append(self.ListenerThread(self.queue, self.ser_conn))
             worker.append(self.ConsumerThread(self.queue, self.mqtt_client, self._PUBTOPIC))
@@ -78,20 +86,21 @@ class MQTTBridge:
                 i.start()
             #time.sleep(1)
             sys.stdout.write("Threads created\n")
-            time.sleep(5)
-            while len(threading.enumerate()) == 4: # main thread + listener + consumer + writer
-                # print("we are 3")
-                pass
-            print("less than 3 now")
-            for i in worker:
-                #try:
-                i.event.set()
-                print("JUST killed {}".format(i))
-                #except: pass
-            for i in worker:
-                i.join()
-                print("JUST joined thread {}".format(i))
-            print("All terminated")
+            self.mqtt_client.loop_start()
+            # time.sleep(5)
+            # while len(threading.enumerate()) == 5: # main thread + listener + consumer + writer + mqtt?
+            #     # print("we are 3")
+            #     pass
+            # print("less than 3 now")
+            # for i in worker:
+            #     #try:
+            #     i.event.set()
+            #     print("JUST killed {}".format(i))
+            #     #except: pass
+            # for i in worker:
+            #     i.join()
+            #     print("JUST joined thread {}".format(i))
+            # print("All terminated")
 
         except Exception as e:
             #TODO: improve exception handling
@@ -101,11 +110,17 @@ class MQTTBridge:
 
 
     # ************ BEGIN PRIVATE METHODS *************
+    def on_message(self, client, userdata, msg):
+            print("On message")
+            if not msg.payload:
+                pass
+            else:
+                print("Payload {}".format(msg.payload.decode('utf-8')))
 
     # The callback for when the client receives a CONNACK response from the server.
     def on_connect(self, client, userdata, flags, rc):
         if self.DEBUG:
-            sys.stdout.write("DEBUG: Connected with result code {}".format(rc))
+            sys.stdout.write("DEBUG: Connected with result code {}\n".format(rc))
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
@@ -114,7 +129,7 @@ class MQTTBridge:
 
     def connect(self):
         if self.DEBUG:
-            sys.stdout.write("DEBUG: Connecting to mqtt broker {} on port {}".format(self._BrokerIP,self._TCPport))
+            sys.stdout.write("DEBUG: Connecting to mqtt broker {} on port {}\n".format(self._BrokerIP,self._TCPport))
         self.mqtt_client.connect(self._BrokerIP, self._TCPport, 180)
 
     def sendData(self, msg):
@@ -125,9 +140,6 @@ class MQTTBridge:
             sys.stdout.write("DEBUG: DEBUG: Disconnected from mqtt")
         self.mqtt_client.disconnect()
 
-    def ip_retrieve(self):
-        #print([(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
-        self.TCP_IP = [(s.connect(('192.168.0.1', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
 
     def open_serial(self, port, baudrate):
         if self.ser_conn.isOpen():
@@ -200,72 +212,34 @@ class MQTTBridge:
     # inner class SimpleWriter implements abstract class AsipWriter:
     class WriterThread(Thread):
         BUFFER_SIZE = 1024
-        DEBUG = False
-        sub_buff = ""
+        DEBUG = True
+        #sub_buff = ""
 
         def __init__(self, ser_conn, mqtt_client, sub_topic):
             Thread.__init__(self)
             self.ser_conn = ser_conn
             self.mqtt_client = mqtt_client
+            self.mqtt_client.on_message = self.on_message
             self.sub_topic = sub_topic
+            self.write_buffer = ""
             self.event = threading.Event()
+            print("Sub topic is {}".format(self.sub_topic))
             self.mqtt_client.subscribe(topic=sub_topic)
 
         # The callback for when a PUBLISH message is received from the server.
         def on_message(self, client, userdata, msg):
+            print("On message")
             if not msg.payload:
                 pass
             else:
-                temp = msg.payload.decode('utf-8')
-                self.sub_buff = self.sub_buff + '\n' + temp
+                data = msg.payload.decode('utf-8')
+                print("Payload is {}".format(data))
+                self.ser_conn.write(data.encode())
 
-
-        # val is a string
-        # TODO: combine run with on_message. Notice that this thread may never be killed if continues to subcribe!!
-        # TODO: improve try catch
-        def run(self):
-            print("Run writer thread")
-            write_buffer = ""
-            while not self.event.is_set():
-                data = self.conn.recv(self.BUFFER_SIZE)
-
-                if self.DEBUG:
-                    sys.stdout.write("DEBUG: Received data from TCP/IP: {}\n".format(data))
-                if data != '\r' and data != '\n' and data !=' ' and data is not None: # ignore empty lines
-                    if "\n" in data:
-                        # If there is at least one newline, we need to process
-                        # the message (the buffer may contain previous characters).
-                        while ("\n" in data and len(data) > 0):
-                            # But remember that there could be more than one newline in the buffer
-                            write_buffer += (data[0:data.index("\n")])
-                            if self.DEBUG:
-                                sys.stdout.write("Serial write buffer is now {}\n".format(write_buffer))
-
-                            #Serial send starts here
-                            if self.ser_conn.isOpen():
-                                try:
-                                    temp = write_buffer.encode()
-                                    self.ser_conn.write(temp)
-                                    if self.DEBUG:
-                                        sys.stdout.write("DEBUG: just wrote in serial {}\n".format(temp))
-                                except (OSError, serial.SerialException):
-                                    pass
-                            else:
-                                raise serial.SerialException
-
-                            write_buffer = ""
-                            if data[data.index("\n")+1:]=='\n':
-                                data = ''
-                                break
-                            else:
-                                data = data[data.index("\n")+1:]
-                        if len(data)>0 and data not in ('\r','\n',' '):
-                            write_buffer = data
-                    else:
-                        write_buffer += data
-
-            print("STOPPING writer")
-
+        # def run(self):
+        #     while not self.event.is_set():
+        #         pass
+        #     self.mqtt_client.on_message = None
 
     # ListenerThread and ConsumerThread are implemented following the Producer/Consumer pattern
     # A class for a listener that rad the serial stream and put incoming messages on a queue
@@ -304,10 +278,10 @@ class MQTTBridge:
     # A class that reads the queue and launch the processInput method of the AispClient.
     class ConsumerThread(Thread):
 
-        DEBUG = False
+        DEBUG = True
 
         # overriding constructor
-        def __init__(self, queue, pub_topic, mqtt_client):
+        def __init__(self, queue, mqtt_client, pub_topic):
             Thread.__init__(self)
             self.queue = queue
             self.mqtt_client = mqtt_client
@@ -328,4 +302,7 @@ class MQTTBridge:
 
 # method for testing is called
 if __name__ == "__main__":
-    MQTTBridge().run()
+    #MQTTBridge( "127.0.0.1","test").test(300)
+    temp = MQTTBridge( "192.168.0.103","test")
+    temp.run()
+    #temp.sub_test()
